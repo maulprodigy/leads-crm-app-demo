@@ -1,28 +1,39 @@
 name: AI Code Security and Quality Review
+
 on:
   pull_request:
-    types: [opened, synchronize]
+    branches: [ main ]
+
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
-    container:
-      image: ghcr.io/astral-sh/uv:python3.12-bookworm
+      issues: write
+
     steps:
-      - name: Install git
-        run: apt-get update && apt-get install -y git
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai
+
       - name: Run security review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          uv run --project code_review_agent code_review_agent/review_agent.py .
-- name: Post findings as PR comment
+          python review_agent.py
+
+      - name: Post findings as PR comment
         if: always()
         uses: actions/github-script@v7
         with:
